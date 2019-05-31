@@ -22,37 +22,60 @@ PERL:
 REF: [https://www.vultr.com/docs/how-to-compile-nginx-from-source-on-centos-7](https://www.vultr.com/docs/how-to-compile-nginx-from-source-on-centos-7)
 
 ### Install necessary package
-`yum groupinstall -y 'Development Tools' && sudo yum install -y vim`
-`yum install -y perl perl-devel perl-ExtUtils-Embed libxslt libxslt-devel libxml2 libxml2-devel gd gd-devel GeoIP GeoIP-devel`
-`yum install -y wget`
-`yum install -y vim`
+```
+yum groupinstall -y 'Development Tools'
+yum install -y perl perl-devel perl-ExtUtils-Embed libxslt libxslt-devel libxml2 libxml2-devel gd gd-devel GeoIP GeoIP-devel
+yum install -y wget
+yum install -y vim
+```
 
-### Download source (Just get stable version)
+### 1. Download source (Just get stable version)
 Download nginx and extract
 
-`wget https://nginx.org/download/nginx-1.16.0.tar.gz`
-`tar zxvf nginx-1.16.0.tar.gz`
+```
+wget https://nginx.org/download/nginx-1.16.0.tar.gz
+tar zxvf nginx-1.16.0.tar.gz
+```
 
 Download openssl and extract
-`wget https://www.openssl.org/source/openssl-1.1.1b.tar.gz`
-`tar zxvf openssl-1.1.1b.tar.gz`
+```
+wget https://www.openssl.org/source/openssl-1.1.1b.tar.gz
+tar zxvf openssl-1.1.1b.tar.gz
+```
 
 Download pcre and extract
-`wget https://ftp.pcre.org/pub/pcre/pcre-8.43.tar.gz`
-`tar zxvf pcre-8.43.tar.gz`
+```
+wget https://ftp.pcre.org/pub/pcre/pcre-8.43.tar.gz
+tar zxvf pcre-8.43.tar.gz
+```
 
 Downloaod zlin and extract
-`wget https://www.zlib.net/zlib-1.2.11.tar.gz`
-`tar zxvf zlib-1.2.11.tar.gz`
-
-Go to NGINX source directory
-`cd ~/nginx-1.16.0`
-
-### Configure
 ```
-./configure --prefix=/etc/nginx \
-            --sbin-path=/usr/sbin/nginx \
-            --modules-path=/usr/lib64/nginx/modules \
+wget https://www.zlib.net/zlib-1.2.11.tar.gz
+tar zxvf zlib-1.2.11.tar.gz
+```
+
+### 2. Create the NGINX system user and group
+```
+useradd --system --home /var/cache/nginx --shell /sbin/nologin --comment "nginx user" --user-group nginx
+```
+
+### 3. Create cache folder
+```
+mkdir -p /var/cache/nginx && sudo nginx -t
+```
+
+### 4. Configure
+Go to NGINX source directory
+```
+cd ~/nginx-1.16.0
+```
+
+```
+./configure \
+  --prefix=/etc/nginx \
+  --sbin-path=/usr/sbin/nginx \
+  --modules-path=/usr/lib64/nginx/modules \
             --conf-path=/etc/nginx/nginx.conf \
             --error-log-path=/var/log/nginx/error.log \
             --pid-path=/var/run/nginx.pid \
@@ -106,9 +129,10 @@ Go to NGINX source directory
             --with-debug
 ```
 
-`make`
-
-`make install`
+```
+make
+make install
+```
 
 Symlink /usr/lib64/nginx/modules to /etc/nginx/modules directory,
 so that you can load dynamic modules in nginx configuration like this 
@@ -134,20 +158,23 @@ configure arguments: --prefix=/etc/nginx --sbin-path=/usr/sbin/nginx . . .
 . . .
 . . .
 ```
-### Create the NGINX system user and group
-`useradd --system --home /var/cache/nginx --shell /sbin/nologin --comment "nginx user" --user-group nginx`
+
 
 ### Check syntax and potential errors:
-`nginx -t`
-
-### Create cache folder
-`mkdir -p /var/cache/nginx && sudo nginx -t`
+```
+nginx -t
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+```
 
 ### Create a systemd unit file for nginx:
-
-`vim /usr/lib/systemd/system/nginx.service`
+```
+vim /usr/lib/systemd/system/nginx.service
+```
 
 ```
+
+
 [Unit]
 Description=nginx - high performance web server
 Documentation=https://nginx.org/en/docs/
@@ -167,35 +194,39 @@ WantedBy=multi-user.target
 ```
 ### Start NGINX service
 Run and check status of NGINX service
-
-`systemctl start nginx.service`
-
-`systemctl status nginx.service`
-
-`ps aux | grep nginx`
-
-`ss -nao | grep :80`
-
-`curl -I 127.0.0.1`
-
+```
+systemctl start nginx.service
+systemctl status nginx.service
+ps aux | grep nginx
+ss -nao | grep :80
+curl -I 127.0.0.1
+```
 ###  Enable NGINX service
 Enable and check  to ensure NGINX service is enabled
 
-`systemctl enable nginx.service`
-
-`systemctl is-enabled nginx.service`
-
+```
+systemctl enable nginx.service
+systemctl is-enabled nginx.service
+```
 ### Reboot your VPS to verify that NGINX starts up automatically:
-`sudo shutdown -r now`
+```
+sudo shutdown -r now
+```
 
 ### Remove archaic files from the /etc/nginx directory:
-`sudo rm /etc/nginx/koi-utf /etc/nginx/koi-win /etc/nginx/win-utf`
+```
+sudo rm /etc/nginx/koi-utf /etc/nginx/koi-win /etc/nginx/win-utf
+```
 
 ### Configure vim for highlighting of NGINX configuration
 Place syntax highlighting of NGINX configuration for vim into ~/.vim/.
 You will get nice syntax highlighting when editing NGINX configuration file:
-`mkdir ~/.vim/`
-`cp -r ~/nginx-1.16.0/contrib/vim/* ~/.vim/`
+```
+mkdir ~/.vim/
+cp -r ~/nginx-1.16.0/contrib/vim/* ~/.vim/
+```
 
 ### Remove all .default backup files from /etc/nginx/:
-`sudo rm /etc/nginx/*.default`
+```
+sudo rm /etc/nginx/*.default
+```
