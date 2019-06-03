@@ -23,10 +23,10 @@ version_openssl=$(curl -sL ${source_openssl} | grep -Eo 'openssl\-[0-9.]+[a-z]?'
 version_nginx=$(curl -sL ${source_nginx} | grep -Eo 'nginx\-[0-9.]+[13579]\.[0-9]+' | sort -V | tail -n 1)
 
 # Set OpenPGP keys used to sign downloads
-opgp_pcre=45F68D54BBE23FB3039B46E59766E084FB0F43D8
-opgp_zlib=5ED46A6721D365587791E2AA783FCD8E58BCAFBA
-opgp_openssl=8657ABB260F056B1E5190839D9C4D26D0E604491
-opgp_nginx=B0F4253373F8F6F510D42178520A9993A1C052F8
+#opgp_pcre=45F68D54BBE23FB3039B46E59766E084FB0F43D8
+#opgp_zlib=5ED46A6721D365587791E2AA783FCD8E58BCAFBA
+#opgp_openssl=8657ABB260F056B1E5190839D9C4D26D0E604491
+#opgp_nginx=B0F4253373F8F6F510D42178520A9993A1C052F8
 
 # Set where OpenSSL and NGINX will be built
 bpath=$(pwd)/nginx-builder
@@ -106,6 +106,11 @@ if [ -d "/etc/nginx" ]; then
   mv /etc/nginx "/etc/nginx-${today}"
 fi
 
+# Rename the existing /usr/sbin//nginx directory so it's saved as a back-up
+if [ ! -e "/lib/systemd/system/nginx.service" ]; then
+  mv /usr/sbin/nginx "/usr/sbin/nginx-${today}"
+fi
+
 # Create NGINX cache directories if they do not already exist
 if [ ! -d "/var/cache/nginx/" ]; then
   mkdir -p \
@@ -122,12 +127,12 @@ id -u nginx &>/dev/null || \
 useradd --system --home /var/cache/nginx --shell /sbin/nologin --comment "nginx user" -g nginx nginx
 
 # Test to see if our version of gcc supports __SIZEOF_INT128__
-#if gcc -dM -E - </dev/null | grep -q __SIZEOF_INT128__
-#then
-#  ecflag="enable-ec_nistp_64_gcc_128"
-#else
-#  ecflag=""
-#fi
+if gcc -dM -E - </dev/null | grep -q __SIZEOF_INT128__
+then
+  ecflag="enable-ec_nistp_64_gcc_128"
+else
+  ecflag=""
+fi
 
 # Build NGINX, with various modules included/excluded
 cd "$bpath/$version_nginx"
@@ -228,15 +233,21 @@ fi
 ln -s /usr/lib64/nginx/modules /etc/nginx/modules
 
 # Copy NGINX manual page to /usr/share/man/man8:
-sudo cp $bpath/$version_nginx/man/nginx.8 /usr/share/man/man8
-sudo gzip /usr/share/man/man8/nginx.8
+sudo cp "$bpath"/"$version_nginx"/man/nginx.8 /usr/share/man/man8
+sudo gzip -f /usr/share/man/man8/nginx.8
 
 # Remove archaic files from the /etc/nginx directory:
 rm /etc/nginx/koi-utf /etc/nginx/koi-win /etc/nginx/win-utf
 
 # Configure vim for highlighting of NGINX configuration
-mkdir ~/.vim/
-cp -r $bpath/$version_nginx/contrib/vim/* ~/.vim/
+# Rename the existing /etc/nginx directory so it's saved as a back-up
+if [ -d "$HOME/.vim/" ]; then
+  echo "$HOME/.vim folder exist!"
+  cp -r "$bpath"/"$version_nginx"/contrib/vim/* "$HOME"/.vim/
+else
+  mkdir ~/.vim/
+  cp -r "$bpath"/"$version_nginx"/contrib/vim/* "$HOME"/.vim/
+fi
 
 echo "All done.";
 echo "Start with sudo systemctl start nginx"
