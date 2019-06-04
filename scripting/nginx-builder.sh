@@ -15,12 +15,16 @@ source_pcre=https://ftp.pcre.org/pub/pcre/
 source_zlib=https://zlib.net/
 source_openssl=https://www.openssl.org/source/
 source_nginx=https://nginx.org/download/
+source_modsec=https://modsecurity.org/download.html
+url_download_modsec=https://www.modsecurity.org/tarball/
 
 # Look up latest versions of each package
 version_pcre=$(curl -sL ${source_pcre} | grep -Eo 'pcre\-[0-9.]+[0-9]' | sort -V | tail -n 1)
 version_zlib=$(curl -sL ${source_zlib} | grep -Eo 'zlib\-[0-9.]+[0-9]' | sort -V | tail -n 1)
 version_openssl=$(curl -sL ${source_openssl} | grep -Eo 'openssl\-[0-9.]+[a-z]?' | sort -V | tail -n 1)
 version_nginx=$(curl -sL ${source_nginx} | grep -Eo 'nginx\-[0-9.]+[13579]\.[0-9]+' | sort -V | tail -n 1)
+version_modsec=$(curl -sL ${source_modsec} | grep -Eo 'modsecurity\-[0-9.]+[0-9]' | sort -V | tail -n 1)
+version_modsec_num=$(curl -sL ${source_modsec} | grep -Eo 'modsecurity\-[0-9.]+[0-9]' | sort -V | tail -n 1 | grep -Eo '[0-9.]+[0-9]')
 
 # Set OpenPGP keys used to sign downloads
 #opgp_pcre=45F68D54BBE23FB3039B46E59766E084FB0F43D8
@@ -65,19 +69,23 @@ yum install -y \
     gd \
     gd-devel \
     GeoIP \
-    GeoIP-devel
+    GeoIP-devel \
+	curl-devel \
+	httpd-devel
 
 # Download the source files
 curl -L "${source_pcre}${version_pcre}.tar.gz" -o "${bpath}/pcre.tar.gz"
 curl -L "${source_zlib}${version_zlib}.tar.gz" -o "${bpath}/zlib.tar.gz"
 curl -L "${source_openssl}${version_openssl}.tar.gz" -o "${bpath}/openssl.tar.gz"
 curl -L "${source_nginx}${version_nginx}.tar.gz" -o "${bpath}/nginx.tar.gz"
+curl -L "${url_download_modsec}${version_modsec_num}/${version_modsec}.tar.gz" -o "${bpath}/modsecurity.tar.gz"
 
 # Download the signature files
 curl -L "${source_pcre}${version_pcre}.tar.gz.sig" -o "${bpath}/pcre.tar.gz.sig"
 curl -L "${source_zlib}${version_zlib}.tar.gz.asc" -o "${bpath}/zlib.tar.gz.asc"
 curl -L "${source_openssl}${version_openssl}.tar.gz.asc" -o "${bpath}/openssl.tar.gz.asc"
 curl -L "${source_nginx}${version_nginx}.tar.gz.asc" -o "${bpath}/nginx.tar.gz.asc"
+curl -L "${url_download_modsec}${version_modsec_num}/${version_modsec}.tar.gz" -o "${bpath}/modsecurity.tar.gz.sha256"
 
 # Verify the integrity and authenticity of the source files through their OpenPGP signature
 #cd "$bpath"
@@ -134,6 +142,12 @@ else
   ecflag=""
 fi
 
+# Buil modsecurity
+cd "$bpath/$version_modsec"
+./autogen.sh
+./configure --enable-standalone-module --disable-mlogc
+make
+  
 # Build NGINX, with various modules included/excluded
 cd "$bpath/$version_nginx"
 
@@ -174,6 +188,7 @@ cd "$bpath/$version_nginx"
   --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
   --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
   --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
+  --add-module="../$version_modsec/nginx/modsecurity" \
   --with-pcre="../$version_pcre" \
   --with-pcre-jit \
   --with-zlib="../$version_zlib" \
