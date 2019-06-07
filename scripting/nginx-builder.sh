@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
-# Run as root or with sudo
+# 1. Run as root or with sudo
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root or with sudo."
   exit 1
 fi
 
-# Make script exit if a simple command fails and
-# Make script print commands being executed
+# 2. Make script exit if a simple command fails and
+#    Make script print commands being executed
 set -e -x
 
-# Set URLs to the source directories
+# 3. Set URLs to the source directories
 source_pcre=https://ftp.pcre.org/pub/pcre/
 source_zlib=https://zlib.net/
 source_openssl=https://www.openssl.org/source/
@@ -18,7 +18,7 @@ source_nginx=https://nginx.org/download/
 source_modsec=https://modsecurity.org/download.html
 url_download_modsec=https://www.modsecurity.org/tarball/
 
-# Look up latest versions of each package
+# 4. Look up latest versions of each package
 version_pcre=$(curl -sL ${source_pcre} | grep -Eo 'pcre\-[0-9.]+[0-9]' | sort -V | tail -n 1)
 version_zlib=$(curl -sL ${source_zlib} | grep -Eo 'zlib\-[0-9.]+[0-9]' | sort -V | tail -n 1)
 version_openssl=$(curl -sL ${source_openssl} | grep -Eo 'openssl\-[0-9.]+[a-z]?' | sort -V | tail -n 1)
@@ -32,20 +32,19 @@ version_modsec_num=$(curl -sL ${source_modsec} | grep -Eo 'modsecurity\-[0-9.]+[
 #opgp_openssl=8657ABB260F056B1E5190839D9C4D26D0E604491
 #opgp_nginx=B0F4253373F8F6F510D42178520A9993A1C052F8
 
-# Set where OpenSSL and NGINX will be built
+# 5. Set where OpenSSL and NGINX will be built
 bpath=$(pwd)/nginx-builder
 
-# Make a "today" variable for use in back-up filenames later
+# 6. Make a "today" variable for use in back-up filenames later
 today=$(date +"%Y-%m-%d")
 
-# Clean out any files from previous runs of this script
+# 7. Clean out any files from previous runs of this script
 rm -rf \
   "$bpath" \
   /etc/nginx-default
 mkdir "$bpath"
 
-# Ensure the required software to compile NGINX is installed
-# Yum Update
+# 8. Ensure the required software to compile NGINX is installed
 yum -y update
 yum -y install \
     epel-release \
@@ -71,23 +70,24 @@ yum install -y \
     GeoIP \
     GeoIP-devel \
 	curl-devel \
-	httpd-devel
+	httpd-devel \
+	pcre-devel
 
-# Download the source files
+# 9. Download the source files
 curl -L "${source_pcre}${version_pcre}.tar.gz" -o "${bpath}/pcre.tar.gz"
 curl -L "${source_zlib}${version_zlib}.tar.gz" -o "${bpath}/zlib.tar.gz"
 curl -L "${source_openssl}${version_openssl}.tar.gz" -o "${bpath}/openssl.tar.gz"
 curl -L "${source_nginx}${version_nginx}.tar.gz" -o "${bpath}/nginx.tar.gz"
 curl -L "${url_download_modsec}${version_modsec_num}/${version_modsec}.tar.gz" -o "${bpath}/modsecurity.tar.gz"
 
-# Download the signature files
+# 10. Download the signature files
 curl -L "${source_pcre}${version_pcre}.tar.gz.sig" -o "${bpath}/pcre.tar.gz.sig"
 curl -L "${source_zlib}${version_zlib}.tar.gz.asc" -o "${bpath}/zlib.tar.gz.asc"
 curl -L "${source_openssl}${version_openssl}.tar.gz.asc" -o "${bpath}/openssl.tar.gz.asc"
 curl -L "${source_nginx}${version_nginx}.tar.gz.asc" -o "${bpath}/nginx.tar.gz.asc"
 curl -L "${url_download_modsec}${version_modsec_num}/${version_modsec}.tar.gz" -o "${bpath}/modsecurity.tar.gz.sha256"
 
-# Verify the integrity and authenticity of the source files through their OpenPGP signature
+# 11. Verify the integrity and authenticity of the source files through their OpenPGP signature
 #cd "$bpath"
 #GNUPGHOME="$(mktemp -d)"
 #export GNUPGHOME
@@ -98,28 +98,28 @@ curl -L "${url_download_modsec}${version_modsec_num}/${version_modsec}.tar.gz" -
 #gpg --batch --verify openssl.tar.gz.asc openssl.tar.gz
 #gpg --batch --verify nginx.tar.gz.asc nginx.tar.gz
 
-# Expand the source files
+# 12. Expand the source files
 cd "$bpath"
 for archive in ./*.tar.gz; do
   tar xzf "$archive"
 done
 
-# Clean up source files
+# 13. Clean up source files
 rm -rf \
   "$GNUPGHOME" \
   "$bpath"/*.tar.*
 
-# Rename the existing /etc/nginx directory so it's saved as a back-up
+# 14. Rename the existing /etc/nginx directory so it's saved as a back-up
 if [ -d "/etc/nginx" ]; then
   mv /etc/nginx "/etc/nginx-${today}"
 fi
 
-# Rename the existing /usr/sbin//nginx directory so it's saved as a back-up
-if [ ! -e "/lib/systemd/system/nginx.service" ]; then
+# 15. Rename the existing /usr/sbin/nginx directory so it's saved as a back-up
+if [ -e "/usr/sbin/nginx" ]; then
   mv /usr/sbin/nginx "/usr/sbin/nginx-${today}"
 fi
 
-# Create NGINX cache directories if they do not already exist
+# 16. Create NGINX cache directories if they do not already exist
 if [ ! -d "/var/cache/nginx/" ]; then
   mkdir -p \
     /var/cache/nginx/client_temp \
@@ -129,12 +129,14 @@ if [ ! -d "/var/cache/nginx/" ]; then
     /var/cache/nginx/scgi_temp
 fi
 
-# Add NGINX group and user if they do not already exist
+# 17. Add NGINX group and user if they do not already exist
 #id -g nginx &>/dev/null || groupadd --system nginx
+getent group nginx &>/dev/null || \
+groupadd --system nginx
 id -u nginx &>/dev/null || \
 useradd --system --home /var/cache/nginx --shell /sbin/nologin --comment "nginx user" -g nginx nginx
 
-# Test to see if our version of gcc supports __SIZEOF_INT128__
+# 18. Test to see if our version of gcc supports __SIZEOF_INT128__
 if gcc -dM -E - </dev/null | grep -q __SIZEOF_INT128__
 then
   ecflag="enable-ec_nistp_64_gcc_128"
@@ -142,13 +144,13 @@ else
   ecflag=""
 fi
 
-# Buil modsecurity
+# 19. Buil modsecurity
 cd "$bpath/$version_modsec"
 ./autogen.sh
 ./configure --enable-standalone-module --disable-mlogc
 make
   
-# Build NGINX, with various modules included/excluded
+# 20. Build NGINX, with various modules included/excluded
 cd "$bpath/$version_nginx"
 
 ./configure \
@@ -220,7 +222,7 @@ make install
 make clean
 strip -s /usr/sbin/nginx*
 
-# Create NGINX systemd service file if it does not already exist
+# 21. Create NGINX systemd service file if it does not already exist
 if [ ! -e "/lib/systemd/system/nginx.service" ]; then
   # Control will enter here if the NGINX service doesn't exist.
   file="/lib/systemd/system/nginx.service"
@@ -242,20 +244,20 @@ WantedBy=multi-user.target
 EOF
 fi
 
-# Symlink /usr/lib64/nginx/modules to /etc/nginx/modules directory,
-# so that you can load dynamic modules in nginx configuration like this
-# load_module modules/ngx_foo_module.so;
+# 22. Symlink /usr/lib64/nginx/modules to /etc/nginx/modules directory,
+#     so that you can load dynamic modules in nginx configuration like this
+#     load_module modules/ngx_foo_module.so;
 ln -s /usr/lib64/nginx/modules /etc/nginx/modules
 
-# Copy NGINX manual page to /usr/share/man/man8:
+# 23. Copy NGINX manual page to /usr/share/man/man8:
 sudo cp "$bpath"/"$version_nginx"/man/nginx.8 /usr/share/man/man8
 sudo gzip -f /usr/share/man/man8/nginx.8
 
-# Remove archaic files from the /etc/nginx directory:
+# 24. Remove archaic files from the /etc/nginx directory:
 rm /etc/nginx/koi-utf /etc/nginx/koi-win /etc/nginx/win-utf
 
-# Configure vim for highlighting of NGINX configuration
-# Rename the existing /etc/nginx directory so it's saved as a back-up
+# 25. Configure vim for highlighting of NGINX configuration
+#     Rename the existing /etc/nginx directory so it's saved as a back-up
 if [ -d "$HOME/.vim/" ]; then
   echo "$HOME/.vim folder exist!"
   cp -r "$bpath"/"$version_nginx"/contrib/vim/* "$HOME"/.vim/
